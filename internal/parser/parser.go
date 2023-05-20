@@ -50,7 +50,14 @@ func (s srcLine) String() string {
 type MachineCode []uint16
 
 func (m MachineCode) Binary() []byte {
-	return nil
+	res := make([]byte, len(m)*2)
+	for i, v := range m {
+		h := byte(v >> 8)
+		l := byte(0xFF & v)
+		res[i*2] = h
+		res[i*2+1] = l
+	}
+	return res
 }
 
 func (m MachineCode) String() []string {

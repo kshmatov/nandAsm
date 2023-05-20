@@ -13,7 +13,7 @@ const (
 	keyboard           = 0x6000
 	maxRamAddr         = keyboard
 	maxRomAddr         = 0xFFFF
-	firstUnassignedMem = 0x16
+	firstUnassignedMem = 0x10
 
 	lineFmt = "line <%v>: %v"
 )
@@ -36,6 +36,8 @@ func init() {
 	for i := 0; i < 16; i++ {
 		bindedMem[i] = struct{}{}
 	}
+	bindedMem[screen] = struct{}{}
+	bindedMem[keyboard] = struct{}{}
 }
 
 type srcLine struct {
@@ -84,8 +86,8 @@ func Parse(source []string) (MachineCode, error) {
 
 func firstPass(source []string) ([]srcLine, error) {
 	prepared := make([]srcLine, 0, len(source))
-	cnt := 1
-	for i, line := range source {
+	cnt := 0
+	for lNum, line := range source {
 		l := strings.TrimSpace(line)
 		if l == "" {
 			continue
@@ -96,20 +98,14 @@ func firstPass(source []string) ([]srcLine, error) {
 			continue
 		}
 		if dst, ok := isJumpDest(l); ok {
-			err := addJmpDest(dst, cnt+1)
+			err := addJmpDest(dst, cnt)
 			if err != nil {
-				return nil, errors.Wrapf(err, lineFmt, i, line)
+				return nil, errors.Wrapf(err, lineFmt, lNum+1, line)
 			}
 			continue
 		}
 		cnt++
-		if dst, ok := isMemLabel(l); ok {
-			err := addMemLabel(dst)
-			if err != nil {
-				return nil, errors.Wrapf(err, lineFmt, i, line)
-			}
-		}
-		prepared = append(prepared, srcLine{n: i, l: l})
+		prepared = append(prepared, srcLine{n: lNum + 1, l: l})
 	}
 	return prepared, nil
 }
@@ -176,8 +172,11 @@ func extractOpAndSrc(s string) (uint16, uint16, error) {
 		if c == ' ' || c == '\t' {
 			continue
 		}
-		sr, _ = getSrc(c)
+		if c == 'A' || c == 'M' {
+			sr, _ = getSrc(c)
+		}
 		r = append(r, c)
+
 	}
 	op, err = getOp(string(r))
 	if err != nil {
@@ -198,23 +197,22 @@ func addJmpDest(s string, i int) error {
 	return errors.Wrap(ErrLabelRedeclared, s)
 }
 
-func addMemLabel(s string) error {
-	_, err := strconv.Atoi(s[1:])
+func addMemLabel(s string) (int, error) {
+	i, err := strconv.Atoi(s[1:])
 	if err == nil {
-		return nil
+		return i, nil
 	}
 
-	// for isBinded(firstFreeMem) {
-	firstFreeMem++
-	if firstFreeMem > maxRamAddr {
-		return ErrNotEnoughRam
+	for isBinded(firstFreeMem) {
+		firstFreeMem++
+		if firstFreeMem > maxRamAddr {
+			return 0, ErrNotEnoughRam
+		}
 	}
-	// }
 
-	if _, ok := symbolTable[s]; !ok {
-		symbolTable[s] = firstFreeMem
-	}
-	return nil
+	symbolTable[s] = firstFreeMem
+	bindMem(firstFreeMem)
+	return firstFreeMem, nil
 }
 
 func getMemLabel(s string) (int, error) {
@@ -225,7 +223,7 @@ func getMemLabel(s string) (int, error) {
 
 	i, ok := symbolTable[s]
 	if !ok {
-		return 0, errors.Wrap(ErrUnknownSymbol, s)
+		return addMemLabel(s)
 	}
 	return i, nil
 }

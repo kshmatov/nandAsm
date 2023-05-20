@@ -4,24 +4,30 @@ import "github.com/pkg/errors"
 
 var (
 	symbolTable = map[string]int{
-		"SCREEN": screen,
-		"KBD":    keyboard,
-		"R0":     0,
-		"R1":     1,
-		"R2":     2,
-		"R3":     3,
-		"R4":     4,
-		"R5":     5,
-		"R6":     6,
-		"R7":     7,
-		"R8":     8,
-		"R9":     9,
-		"R10":    10,
-		"R11":    11,
-		"R12":    12,
-		"R13":    13,
-		"R14":    14,
-		"R15":    15}
+		"@SCREEN": screen,
+		"@KBD":    keyboard,
+		"@R0":     0,
+		"@R1":     1,
+		"@R2":     2,
+		"@R3":     3,
+		"@R4":     4,
+		"@R5":     5,
+		"@R6":     6,
+		"@R7":     7,
+		"@R8":     8,
+		"@R9":     9,
+		"@R10":    10,
+		"@R11":    11,
+		"@R12":    12,
+		"@R13":    13,
+		"@R14":    14,
+		"@R15":    15,
+		"@SP":     0,
+		"@LCL":    1,
+		"@ARG":    2,
+		"@THIS":   3,
+		"@THAT":   4,
+	}
 
 	ops = map[string]int{
 		"0":   0b101010,
@@ -55,7 +61,7 @@ var (
 
 	src = map[rune]int{
 		'A': 0,
-		'M': 1,
+		'M': 0b0001000000000000,
 	}
 
 	dst = map[rune]int{
@@ -91,7 +97,7 @@ func getOp(s string) (uint16, error) {
 
 func getSrc(s rune) (uint16, error) {
 	if v, ok := src[s]; ok {
-		return uint16(v) << 12, nil
+		return uint16(v), nil
 	}
 	return 0, errors.Wrap(ErrUnknownOp, string(s))
 }
@@ -114,7 +120,7 @@ func getDst(s string) (uint16, error) {
 func isJumpDest(s string) (string, bool) {
 	l := len(s)
 	if s[0] == '(' && s[l-1] == ')' {
-		return s[1 : l-1], true
+		return "@" + s[1:l-1], true
 	}
 	return "", false
 }

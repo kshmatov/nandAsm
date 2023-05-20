@@ -77,7 +77,7 @@ func Parse(source []string) (MachineCode, error) {
 
 func firstPass(source []string) ([]srcLine, error) {
 	prepared := make([]srcLine, 0, len(source))
-	cnt := 0
+	cnt := 1
 	for i, line := range source {
 		l := strings.TrimSpace(line)
 		if l == "" {
